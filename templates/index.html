@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Irrigation Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        soil: {
+                            100: '#f5f5dc',
+                            200: '#e6d5a8',
+                            300: '#d4b483',
+                            400: '#c19a6b',
+                            500: '#8b5a2b',
+                        },
+                        farm: {
+                            100: '#e9f5e9',
+                            200: '#c8e6c8',
+                            300: '#a5d6a7',
+                            400: '#81c784',
+                            500: '#4caf50',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Inter"', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom CSS -->
+    <!-- NEW -->
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-farm-100 to-farm-200 dark:bg-gradient-to-br dark:from-gray-800 dark:to-gray-900 transition-colors duration-300">
+    <div class="container mx-auto px-4 py-6 min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 mb-6 shadow-lg border border-white/20 dark:border-gray-700/50 transition-colors duration-300">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="text-4xl text-primary-600 dark:text-primary-400 animate-float">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
+                        Smart Irrigation Dashboard
+                    </h1>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="status-indicator flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 dark:bg-gray-700 border border-green-100 dark:border-gray-600">
+                        <span class="status-dot w-3 h-3 rounded-full bg-green-500 animate-pulse-slow" id="connectionStatus"></span>
+                        <span class="status-text text-sm font-medium text-green-800 dark:text-green-300" id="connectionText">Connecting...</span>
+                    </div>
+                    
+                    <!-- Dark Mode Toggle -->
+                    <button id="themeToggle" class="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-moon dark:hidden"></i>
+                        <i class="fas fa-sun hidden dark:block"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- New Weather Section -->
+        <section class="mb-6">
+            <div class="weather-container bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6 shadow-lg border border-blue-100 dark:border-gray-600 transition-all duration-300">
+                <div class="flex flex-col md:flex-row justify-between items-start gap-6">
+                    <!-- Location Input -->
+                    <div class="location-input flex-1 w-full">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fas fa-map-marker-alt text-2xl text-blue-500"></i>
+                            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Current Weather</h2>
+                        </div>
+                        
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <div class="relative flex-1">
+                                <input type="text" id="locationInput" placeholder="Enter location (e.g. London)" 
+                                    class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                                <button id="detectLocationBtn" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-700 dark:hover:text-blue-400">
+                                    <i class="fas fa-location-arrow"></i>
+                                </button>
+                            </div>
+                            <button id="fetchWeatherBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2">
+                                <i class="fas fa-search"></i> Get Weather
+                            </button>
+                        </div>
+                        <div id="locationError" class="text-red-500 text-sm mt-2 hidden"></div>
+                    </div>
+
+                    <!-- Weather Display -->
+                    <div class="weather-display bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm rounded-xl p-6 shadow-inner border border-white/30 dark:border-gray-600/50 flex-1 w-full">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="text-2xl font-bold text-gray-800 dark:text-white mb-1" id="weatherLocation">--</div>
+                                <div class="text-gray-600 dark:text-gray-300 text-sm" id="weatherTime">--</div>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded" id="weatherUpdated">--</div>
+                        </div>
+
+                        <div class="mt-4 flex flex-col sm:flex-row items-center gap-6">
+                            <div class="flex items-center gap-4">
+                                <div class="weather-icon text-6xl" id="weatherIcon">⛅</div>
+                                <div>
+                                    <div class="weather-temp text-5xl font-bold text-gray-800 dark:text-white" id="weatherTemp">--°C</div>
+                                    <div class="weather-desc text-gray-600 dark:text-gray-300 capitalize -mt-1" id="weatherDesc">--</div>
+                                </div>
+                            </div>
+
+                            <div class="weather-details grid grid-cols-2 gap-x-6 gap-y-2 flex-1">
+                                <div class="weather-detail">
+                                    <div class="detail-label text-xs text-gray-500 dark:text-gray-400">Feels Like</div>
+                                    <div class="detail-value text-lg font-medium text-gray-800 dark:text-white" id="feelsLike">--°C</div>
+                                </div>
+                                <div class="weather-detail">
+                                    <div class="detail-label text-xs text-gray-500 dark:text-gray-400">Humidity</div>
+                                    <div class="detail-value text-lg font-medium text-gray-800 dark:text-white" id="weatherHumidity">--%</div>
+                                </div>
+                                <div class="weather-detail">
+                                    <div class="detail-label text-xs text-gray-500 dark:text-gray-400">Wind</div>
+                                    <div class="detail-value text-lg font-medium text-gray-800 dark:text-white" id="windSpeed">-- km/h</div>
+                                </div>
+                                <div class="weather-detail">
+                                    <div class="detail-label text-xs text-gray-500 dark:text-gray-400">Pressure</div>
+                                    <div class="detail-value text-lg font-medium text-gray-800 dark:text-white" id="pressure">-- hPa</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alert Section -->
+        <div class="alert-container mb-6 hidden" id="alertContainer">
+            <div class="alert alert-warning bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 flex items-start gap-3 shadow-md">
+                <span class="alert-icon text-2xl text-yellow-600 dark:text-yellow-300">⚠️</span>
+                <div class="alert-content flex-1">
+                    <h3 class="font-semibold text-yellow-800 dark:text-yellow-200">Irrigation Alert</h3>
+                    <p class="text-yellow-700 dark:text-yellow-300 text-sm" id="alertMessage">Soil moisture is critically low. Irrigation recommended.</p>
+                </div>
+                <button class="alert-close text-yellow-600 dark:text-yellow-300 hover:text-yellow-800 dark:hover:text-yellow-100 text-xl" onclick="dismissAlert()">×</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <main class="dashboard-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 flex-1">
+            <!-- Soil Moisture Card -->
+            <div class="card bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div class="card-header flex justify-between items-center mb-5">
+                    <h2 class="card-title text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="card-icon text-2xl text-blue-500"><i class="fas fa-tint"></i></span>
+                        Soil Moisture
+                    </h2>
+                    <div class="last-updated text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded" id="moistureUpdated">--</div>
+                </div>
+                <div class="card-content">
+                    <div class="metric-display flex items-baseline gap-2 mb-4">
+                        <div class="metric-value text-5xl font-bold text-gray-800 dark:text-white" id="moistureValue">--</div>
+                        <div class="metric-unit text-xl text-gray-500 dark:text-gray-400">%</div>
+                    </div>
+                    <div class="progress-bar w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-3">
+                        <div class="progress-fill h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500" id="moistureProgress" style="width: 0%"></div>
+                    </div>
+                    <div class="metric-status text-sm font-medium px-3 py-1.5 rounded text-center bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200" id="moistureStatus">Loading...</div>
+                </div>
+            </div>
+
+            <!-- NPK Sensor Card -->
+            <div class="card bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div class="card-header flex justify-between items-center mb-5">
+                    <h2 class="card-title text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="card-icon text-2xl text-purple-500"><i class="fas fa-flask"></i></span>
+                        NPK Levels
+                    </h2>
+                    <div class="last-updated text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded" id="npkUpdated">--</div>
+                </div>
+                <div class="card-content">
+                    <div class="npk-grid grid grid-cols-3 gap-3">
+                        <div class="npk-item bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+                            <div class="npk-label text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-2">Nitrogen (N)</div>
+                            <div class="npk-value text-2xl font-bold text-gray-800 dark:text-white" id="nitrogenValue">--</div>
+                            <div class="npk-unit text-xs text-gray-500 dark:text-gray-400 mt-1">ppm</div>
+                        </div>
+                        <div class="npk-item bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+                            <div class="npk-label text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-2">Phosphorus (P)</div>
+                            <div class="npk-value text-2xl font-bold text-gray-800 dark:text-white" id="phosphorusValue">--</div>
+                            <div class="npk-unit text-xs text-gray-500 dark:text-gray-400 mt-1">ppm</div>
+                        </div>
+                        <div class="npk-item bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+                            <div class="npk-label text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-2">Potassium (K)</div>
+                            <div class="npk-value text-2xl font-bold text-gray-800 dark:text-white" id="potassiumValue">--</div>
+                            <div class="npk-unit text-xs text-gray-500 dark:text-gray-400 mt-1">ppm</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temperature & Humidity Card -->
+            <div class="card bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div class="card-header flex justify-between items-center mb-5">
+                    <h2 class="card-title text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="card-icon text-2xl text-orange-500"><i class="fas fa-temperature-high"></i></span>
+                        Climate
+                    </h2>
+                    <div class="last-updated text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded" id="climateUpdated">--</div>
+                </div>
+                <div class="card-content">
+                    <div class="climate-grid grid grid-cols-2 gap-3 mb-4">
+                        <div class="climate-item bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+                            <div class="climate-label text-sm text-gray-500 dark:text-gray-400 mb-2">Temperature</div>
+                            <div class="climate-value text-3xl font-bold text-gray-800 dark:text-white" id="temperatureValue">--</div>
+                            <div class="climate-unit text-sm text-gray-500 dark:text-gray-400 mt-1">°C</div>
+                        </div>
+                        <div class="climate-item bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+                            <div class="climate-label text-sm text-gray-500 dark:text-gray-400 mb-2">Humidity</div>
+                            <div class="climate-value text-3xl font-bold text-gray-800 dark:text-white" id="humidityValue">--</div>
+                            <div class="climate-unit text-sm text-gray-500 dark:text-gray-400 mt-1">%</div>
+                        </div>
+                    </div>
+                    <div class="climate-status text-sm font-medium px-3 py-1.5 rounded text-center bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200" id="climateStatus">Loading...</div>
+                </div>
+            </div>
+
+            <!-- pH Level Card -->
+            <div class="card bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div class="card-header flex justify-between items-center mb-5">
+                    <h2 class="card-title text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="card-icon text-2xl text-pink-500"><i class="fas fa-vial"></i></span>
+                        Soil pH Level
+                    </h2>
+                    <div class="last-updated text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded" id="phUpdated">--</div>
+                </div>
+                <div class="card-content">
+                    <div class="metric-display flex items-baseline gap-2 mb-4">
+                        <div class="metric-value text-5xl font-bold text-gray-800 dark:text-white" id="phValue">--</div>
+                    </div>
+                    <div class="progress-bar w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-3">
+                        <div class="progress-fill h-full rounded-full transition-all duration-500" id="phProgress" style="width: 0%; background: linear-gradient(to right, #ec4899, #f43f5e)"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        <span>Acidic</span>
+                        <span>Neutral</span>
+                        <span>Alkaline</span>
+                    </div>
+                    <div class="metric-status text-sm font-medium px-3 py-1.5 rounded text-center bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200" id="phStatus">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div class="card-header mb-5">
+                    <h2 class="card-title text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="card-icon text-2xl text-blue-500"><i class="fas fa-sliders-h"></i></span>
+                        Quick Actions
+                    </h2>
+                </div>
+                <div class="card-content">
+                    <div class="action-buttons space-y-3">
+                        <button 
+  id="irrigationButton"
+  onclick="manualIrrigation()"
+  class="action-btn primary w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  <i class="fas fa-tint"></i> Start Irrigation
+</button>
+                        <button class="action-btn secondary w-full flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium py-3 px-4 rounded-xl border border-gray-200 dark:border-gray-600 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5" onclick="refreshData()">
+                            <i class="fas fa-sync-alt"></i> Refresh Data
+                        </button>
+                        <button class="action-btn secondary w-full flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium py-3 px-4 rounded-xl border border-gray-200 dark:border-gray-600 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5" onclick="exportData()">
+                            <i class="fas fa-download"></i> Export Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Crop Recommendation Card (Highlighted) -->
+            <div class="card bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-green-200 dark:border-green-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 lg:col-span-2">
+                <div class="card-header flex justify-between items-center mb-5">
+                    <h2 class="card-title text-xl font-semibold text-green-800 dark:text-green-200 flex items-center gap-2">
+                        <span class="card-icon text-2xl text-green-600 dark:text-green-400"><i class="fas fa-robot"></i></span>
+                        AI Crop Recommendation
+                    </h2>
+                    <div class="last-updated text-xs text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/50 px-2 py-1 rounded" id="cropsUpdated">--</div>
+                </div>
+                <div class="card-content">
+                    <div class="single-crop-recommendation mb-6" id="singleCropRecommendation">
+                        <div class="loading-message text-center text-gray-500 italic py-10 bg-white/50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                            Analyzing conditions...
+                        </div>
+                    </div>
+                    <div class="current-conditions p-4 bg-white/50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Current Conditions</h3>
+                        <div class="conditions-grid grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="condition-item bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+                                <span class="condition-label block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-1">NPK</span>
+                                <span class="condition-value text-sm font-semibold text-gray-800 dark:text-white" id="npkSummary">--</span>
+                            </div>
+                            <div class="condition-item bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+                                <span class="condition-label block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-1">Temperature</span>
+                                <span class="condition-value text-sm font-semibold text-gray-800 dark:text-white" id="tempSummary">--°C</span>
+                            </div>
+                            <div class="condition-item bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+                                <span class="condition-label block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-1">Humidity</span>
+                                <span class="condition-value text-sm font-semibold text-gray-800 dark:text-white" id="humiditySummary">--%</span>
+                            </div>
+                            <div class="condition-item bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+                                <span class="condition-label block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider mb-1">Moisture</span>
+                                <span class="condition-value text-sm font-semibold text-gray-800 dark:text-white" id="moistureSummary">--%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status Card (Highlighted) -->
+            <div class="card bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-blue-200 dark:border-blue-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div class="card-header flex justify-between items-center mb-5">
+                    <h2 class="card-title text-xl font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                        <span class="card-icon text-2xl text-blue-600 dark:text-blue-400"><i class="fas fa-cogs"></i></span>
+                        Irrigation System
+                    </h2>
+                    <div class="last-updated text-xs text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded" id="systemUpdated">--</div>
+                </div>
+                <div class="card-content">
+                    <div class="system-stats space-y-4">
+                        <div class="system-stat flex justify-between items-center pb-4 border-b border-blue-200 dark:border-blue-700/50">
+                            <div class="stat-label text-sm text-blue-700 dark:text-blue-300">Pump Status</div>
+                            <div class="stat-value text-sm font-medium text-blue-800 dark:text-blue-200 flex items-center gap-2" id="irrigationStatus">
+                                <span class="status-indicator-small w-2 h-2 rounded-full bg-green-500 animate-pulse-slow"></span>
+                                <span>Active</span>
+                            </div>
+                        </div>
+                        <div class="system-stat flex justify-between items-center pb-4 border-b border-blue-200 dark:border-blue-700/50">
+                            <div class="stat-label text-sm text-blue-700 dark:text-blue-300">Last Watering</div>
+                            <div class="stat-value text-sm font-medium text-blue-800 dark:text-blue-200" id="lastWatering">2 hours ago</div>
+                        </div>
+                        <div class="system-stat flex justify-between items-center pb-4 border-b border-blue-200 dark:border-blue-700/50">
+                            <div class="stat-label text-sm text-blue-700 dark:text-blue-300">Water Level</div>
+                            <div class="stat-value text-sm font-medium text-blue-800 dark:text-blue-200" id="waterLevel">85%</div>
+                        </div>
+                        <div class="system-stat flex justify-between items-center">
+                            <div class="stat-label text-sm text-blue-700 dark:text-blue-300">System Mode</div>
+                            <div class="stat-value">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" value="" class="sr-only peer" id="systemModeToggle">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                    <span class="ml-3 text-sm font-medium text-blue-800 dark:text-blue-200" id="systemModeText">Auto</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-xl p-4 text-center text-gray-600 dark:text-gray-400 text-sm shadow border border-white/20 dark:border-gray-700/50 mt-auto">
+            <p>&copy; 2024 Smart Irrigation System. Last sync: <span class="font-medium" id="lastSync">--</span></p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Weather API Implementation
+        const WEATHER_API_KEY = '4a371d4848c943469ef123606252606';
+        const weatherElements = {
+            locationInput: document.getElementById('locationInput'),
+            detectLocationBtn: document.getElementById('detectLocationBtn'),
+            fetchWeatherBtn: document.getElementById('fetchWeatherBtn'),
+            locationError: document.getElementById('locationError'),
+            weatherLocation: document.getElementById('weatherLocation'),
+            weatherTime: document.getElementById('weatherTime'),
+            weatherIcon: document.getElementById('weatherIcon'),
+            weatherTemp: document.getElementById('weatherTemp'),
+            weatherDesc: document.getElementById('weatherDesc'),
+            feelsLike: document.getElementById('feelsLike'),
+            weatherHumidity: document.getElementById('weatherHumidity'),
+            windSpeed: document.getElementById('windSpeed'),
+            pressure: document.getElementById('pressure'),
+            weatherUpdated: document.getElementById('weatherUpdated')
+        };
+
+        // Weather icon mapping
+        const weatherIcons = {
+            '1000': '☀️', // Sunny
+            '1003': '⛅', // Partly cloudy
+            '1006': '☁️', // Cloudy
+            '1009': '🌫️', // Overcast
+            '1030': '🌫️', // Mist
+            '1063': '🌧️', // Patchy rain
+            '1066': '🌨️', // Patchy snow
+            '1069': '🌨️', // Patchy sleet
+            '1072': '🌧️', // Patchy freezing drizzle
+            '1087': '🌩️', // Thundery outbreaks
+            '1114': '❄️', // Blowing snow
+            '1117': '❄️', // Blizzard
+            '1135': '🌫️', // Fog
+            '1147': '🌫️', // Freezing fog
+            '1150': '🌧️', // Patchy light drizzle
+            '1153': '🌧️', // Light drizzle
+            '1168': '🌧️', // Freezing drizzle
+            '1171': '🌧️', // Heavy freezing drizzle
+            '1180': '🌧️', // Patchy light rain
+            '1183': '🌧️', // Light rain
+            '1186': '🌧️', // Moderate rain
+            '1189': '🌧️', // Heavy rain
+            '1192': '🌧️', // Light freezing rain
+            '1195': '🌧️', // Heavy freezing rain
+            '1198': '🌧️', // Light sleet
+            '1201': '🌧️', // Moderate/heavy sleet
+            '1204': '🌨️', // Light snow
+            '1207': '🌨️', // Moderate/heavy snow
+            '1210': '🌨️', // Patchy light snow
+            '1213': '🌨️', // Light snow
+            '1216': '🌨️', // Moderate snow
+            '1219': '🌨️', // Heavy snow
+            '1222': '🌨️', // Ice pellets
+            '1225': '🌨️', // Light ice pellets
+            '1237': '🌨️', // Moderate/heavy ice pellets
+            '1240': '🌧️', // Light rain shower
+            '1243': '🌧️', // Moderate/heavy rain shower
+            '1246': '🌧️', // Torrential rain shower
+            '1249': '🌨️', // Light sleet showers
+            '1252': '🌨️', // Moderate/heavy sleet showers
+            '1255': '🌨️', // Light snow showers
+            '1258': '🌨️', // Moderate/heavy snow showers
+            '1261': '🌨️', // Light showers of ice pellets
+            '1264': '🌨️', // Moderate/heavy showers of ice pellets
+            '1273': '🌩️', // Patchy light rain with thunder
+            '1276': '🌩️', // Moderate/heavy rain with thunder
+            '1279': '🌩️', // Patchy light snow with thunder
+            '1282': '🌩️'  // Moderate/heavy snow with thunder
+        };
+
+        // Detect location automatically
+        weatherElements.detectLocationBtn.addEventListener('click', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const { latitude, longitude } = position.coords;
+                        fetchWeather(`${latitude},${longitude}`);
+                    },
+                    error => {
+                        weatherElements.locationError.textContent = "Could not detect location. Please enter manually.";
+                        weatherElements.locationError.classList.remove('hidden');
+                        console.error("Geolocation error:", error);
+                    }
+                );
+            } else {
+                weatherElements.locationError.textContent = "Geolocation is not supported by your browser";
+                weatherElements.locationError.classList.remove('hidden');
+            }
+        });
+
+        // Fetch weather by manual input
+        weatherElements.fetchWeatherBtn.addEventListener('click', () => {
+            const location = weatherElements.locationInput.value.trim();
+            if (location) {
+                fetchWeather(location);
+            } else {
+                weatherElements.locationError.textContent = "Please enter a location";
+                weatherElements.locationError.classList.remove('hidden');
+            }
+        });
+
+        // Fetch weather data from API
+        async function fetchWeather(location) {
+            weatherElements.locationError.classList.add('hidden');
+            try {
+                const response = await fetch(
+                    `http://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(location)}&aqi=yes`
+                );
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                updateWeatherDisplay(data);
+            } catch (error) {
+                weatherElements.locationError.textContent = "Failed to fetch weather data. Please try again.";
+                weatherElements.locationError.classList.remove('hidden');
+                console.error("Weather API error:", error);
+            }
+        }
+
+        // Update weather display
+        function updateWeatherDisplay(data) {
+            const { location, current } = data;
+            
+            // Update location info
+            weatherElements.weatherLocation.textContent = `${location.name}, ${location.country}`;
+            weatherElements.weatherTime.textContent = new Date(location.localtime).toLocaleString();
+            weatherElements.locationInput.value = location.name;
+            
+            // Update current weather
+            weatherElements.weatherTemp.textContent = `${current.temp_c}°C`;
+            weatherElements.weatherDesc.textContent = current.condition.text;
+            weatherElements.feelsLike.textContent = `${current.feelslike_c}°C`;
+            weatherElements.weatherHumidity.textContent = `${current.humidity}%`;
+            weatherElements.windSpeed.textContent = `${current.wind_kph} km/h`;
+            weatherElements.pressure.textContent = `${current.pressure_mb} hPa`;
+            weatherElements.weatherUpdated.textContent = `Updated: ${formatTime(new Date())}`;
+            
+            // Update weather icon
+            const weatherCode = current.condition.code.toString();
+            weatherElements.weatherIcon.textContent = weatherIcons[weatherCode] || '🌤️';
+        }
+
+        // Helper function to format time
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+
+        // Try to detect location on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            weatherElements.detectLocationBtn.click();
+        });
+    </script>
+</body>
+</html>
