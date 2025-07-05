@@ -67,7 +67,11 @@ const elements = {
   feelsLike: document.getElementById("feelsLike"),
   pressure: document.getElementById("pressure"),
   windSpeed: document.getElementById("windSpeed"),
-  weatherUpdated: document.getElementById("weatherUpdated")
+  weatherUpdated: document.getElementById("weatherUpdated"),
+    manualIrrigationControls: document.getElementById("manualIrrigationControls"),
+  startIrrigation: document.getElementById("startIrrigation"),
+  stopIrrigation: document.getElementById("stopIrrigation"),
+  irrigationDurationOptions: document.getElementById("irrigationDurationOptions")
 };
 
 // ===== THEME TOGGLE =====
@@ -116,11 +120,39 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+
+/**manual changing on and off button */
+window.addEventListener("DOMContentLoaded", () => {
+  const savedTheme = localStorage.getItem("theme");
+  const root = document.documentElement;
+  const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  root.classList.toggle("dark", isDark);
+
+  // Theme Icons
+  const moonIcon = themeToggle.querySelector(".fa-moon");
+  const sunIcon = themeToggle.querySelector(".fa-sun");
+  if (isDark) {
+    moonIcon.classList.add("hidden");
+    sunIcon.classList.remove("hidden");
+  } else {
+    moonIcon.classList.remove("hidden");
+    sunIcon.classList.add("hidden");
+  }
+
+  // Set initial mode
+const isManual = elements.systemModeToggle.checked;
+  elements.systemModeText.textContent = isManual ? "Manual" : "Auto";
+  elements.irrigationButton.disabled = !isManual;
+  elements.manualIrrigationControls.classList.toggle("hidden", !isManual);
+});
+
 // ===== MODE TOGGLE =====
 elements.systemModeToggle.addEventListener("change", () => {
   const isManual = elements.systemModeToggle.checked;
   elements.systemModeText.textContent = isManual ? "Manual" : "Auto";
   elements.irrigationButton.disabled = !isManual;
+
+  elements.manualIrrigationControls.classList.toggle("hidden", !isManual);
 
   if (isManual) {
     elements.irrigationButton.classList.remove("opacity-50", "cursor-not-allowed");
@@ -130,6 +162,7 @@ elements.systemModeToggle.addEventListener("change", () => {
     elements.irrigationButton.classList.remove("hover:-translate-y-0.5", "hover:shadow-lg", "hover:from-blue-600", "hover:to-blue-700");
   }
 });
+
 
 // ===== SENSOR FETCH =====
 async function fetchSensorData() {
@@ -269,3 +302,25 @@ window.onload = () => {
   setInterval(window.refreshData, CONFIG.UPDATE_INTERVAL);
   setInterval(fetchWeather, CONFIG.WEATHER_UPDATE_INTERVAL);
 };
+
+
+/**manual button changing  */
+// Manual Irrigation Buttons
+elements.startIrrigation.addEventListener("click", () => {
+  elements.irrigationDurationOptions.classList.toggle("hidden");
+});
+
+document.querySelectorAll(".duration-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const mins = btn.getAttribute("data-minutes");
+    alert(`✅ Irrigation started for ${mins} minutes.`);
+    
+    // TODO: send to backend if needed
+    elements.irrigationDurationOptions.classList.add("hidden");
+  });
+});
+
+elements.stopIrrigation.addEventListener("click", () => {
+  alert("🛑 Irrigation stopped manually.");
+  // TODO: send stop signal to backend if implemented
+});

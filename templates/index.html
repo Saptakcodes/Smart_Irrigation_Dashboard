@@ -306,6 +306,23 @@
                     </div>
                 </div>
             </div>
+            <div id="manualIrrigationControls" class="mt-4 space-y-2 hidden">
+  <button id="startIrrigation" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+    Start Irrigation
+  </button>
+
+  <div id="irrigationDurationOptions" class="hidden space-x-2 mt-2">
+    <button data-minutes="5" class="duration-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">5 min</button>
+    <button data-minutes="10" class="duration-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">10 min</button>
+    <button data-minutes="20" class="duration-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">20 min</button>
+    <button data-minutes="30" class="duration-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">30 min</button>
+  </div>
+
+  <button id="stopIrrigation" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+    Stop Irrigation
+  </button>
+</div>
+
 
             <!-- AI Crop Recommendation Card (Highlighted) -->
             <div class="card bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-green-200 dark:border-green-700/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 lg:col-span-2">
