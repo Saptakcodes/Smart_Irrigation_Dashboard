@@ -5,6 +5,7 @@ const CONFIG = {
   MOISTURE_THRESHOLD: 30,
   PH_THRESHOLD_LOW: 5.5,
   PH_THRESHOLD_HIGH: 7.5,
+  WEATHER_API_KEY: "your_weatherapi_key_here"
 };
 
 const CROP_ICONS = {
@@ -13,6 +14,18 @@ const CROP_ICONS = {
   Potato: "🥔",
   Cotton: "🌸",
   Sugarcane: "🎋"
+};
+
+const WEATHER_ICONS = {
+  "Sunny": "☀️",
+  "Clear": "🌞",
+  "Partly cloudy": "⛅",
+  "Cloudy": "☁️",
+  "Rain": "🌧️",
+  "Overcast": "🌫️",
+  "Mist": "🌫️",
+  "Thunderstorm": "🌩️",
+  "Snow": "❄️"
 };
 
 const elements = {
@@ -47,7 +60,14 @@ const elements = {
   humiditySummary: document.getElementById("humiditySummary"),
   moistureSummary: document.getElementById("moistureSummary"),
   cropsUpdated: document.getElementById("cropsUpdated"),
-  irrigationButton: document.getElementById("irrigationButton")
+  irrigationButton: document.getElementById("irrigationButton"),
+  weatherIcon: document.getElementById("weatherIcon"),
+  weatherTemp: document.getElementById("weatherTemp"),
+  weatherDesc: document.getElementById("weatherDesc"),
+  feelsLike: document.getElementById("feelsLike"),
+  pressure: document.getElementById("pressure"),
+  windSpeed: document.getElementById("windSpeed"),
+  weatherUpdated: document.getElementById("weatherUpdated")
 };
 
 // ===== THEME TOGGLE =====
@@ -84,6 +104,16 @@ window.addEventListener("DOMContentLoaded", () => {
     moonIcon.classList.remove("hidden");
     sunIcon.classList.add("hidden");
   }
+
+  // INITIALIZE START IRRIGATION BUTTON
+  const isManual = elements.systemModeToggle.checked;
+  elements.systemModeText.textContent = isManual ? "Manual" : "Auto";
+  elements.irrigationButton.disabled = !isManual;
+  if (isManual) {
+    elements.irrigationButton.classList.remove("opacity-50", "cursor-not-allowed");
+  } else {
+    elements.irrigationButton.classList.add("opacity-50", "cursor-not-allowed");
+  }
 });
 
 // ===== MODE TOGGLE =====
@@ -113,10 +143,33 @@ async function fetchSensorData() {
   }
 }
 
-// ===== UPDATE DASHBOARD UI =====
+// ===== WEATHER FETCH =====
+async function fetchWeather() {
+  try {
+    const res = await fetch(`http://api.weatherapi.com/v1/current.json?key=${CONFIG.WEATHER_API_KEY}&q=auto:ip`);
+    if (!res.ok) throw new Error("Failed to fetch weather");
+    const data = await res.json();
+    updateWeatherUI(data);
+  } catch (e) {
+    console.error("Weather Error:", e);
+  }
+}
+
+function updateWeatherUI(data) {
+  const current = data.current;
+  const icon = WEATHER_ICONS[current.condition.text] || "🌤️";
+  elements.weatherIcon.textContent = icon;
+  elements.weatherTemp.textContent = `${current.temp_c}°C`;
+  elements.weatherDesc.textContent = current.condition.text;
+  elements.feelsLike.textContent = `${current.feelslike_c}°C`;
+  elements.pressure.textContent = `${current.pressure_mb} hPa`;
+  elements.windSpeed.textContent = `${current.wind_kph} km/h`;
+  elements.weatherUpdated.textContent = new Date().toLocaleTimeString();
+}
+
+// ===== UI UPDATE =====
 function updateSensorUI(data) {
   const now = new Date();
-
   elements.moistureValue.textContent = data.soil_moisture;
   elements.moistureProgress.style.width = `${data.soil_moisture}%`;
   elements.moistureStatus.textContent = data.soil_moisture < CONFIG.MOISTURE_THRESHOLD ? "Irrigation Needed" : "Optimal";
@@ -133,10 +186,15 @@ function updateSensorUI(data) {
 
   elements.phValue.textContent = data.soil_pH;
   elements.phProgress.style.width = `${(data.soil_pH / 14) * 100}%`;
-  elements.phStatus.textContent = data.soil_pH < CONFIG.PH_THRESHOLD_LOW ? "Too Acidic" : data.soil_pH > CONFIG.PH_THRESHOLD_HIGH ? "Too Alkaline" : "Optimal";
+  elements.phStatus.textContent =
+    data.soil_pH < CONFIG.PH_THRESHOLD_LOW
+      ? "Too Acidic"
+      : data.soil_pH > CONFIG.PH_THRESHOLD_HIGH
+      ? "Too Alkaline"
+      : "Optimal";
   elements.phUpdated.textContent = now.toLocaleTimeString();
 
-  elements.irrigationStatus.innerHTML = `<span class="status-indicator-small w-2 h-2 rounded-full bg-${data.irrigation_prediction ? 'green' : 'gray'}-500 animate-pulse-slow"></span> ${data.irrigation_prediction ? 'Active' : 'Standby'}`;
+  elements.irrigationStatus.innerHTML = `<span class="status-indicator-small w-2 h-2 rounded-full bg-${data.irrigation_prediction ? "green" : "gray"}-500 animate-pulse-slow"></span> ${data.irrigation_prediction ? "Active" : "Standby"}`;
   elements.systemUpdated.textContent = now.toLocaleTimeString();
   elements.lastWatering.textContent = "Just Now";
   elements.waterLevel.textContent = `${Math.floor(Math.random() * 30 + 70)}%`;
@@ -183,7 +241,6 @@ window.refreshData = async () => {
   updateSensorUI(sensor);
   const crop = await fetchCropPrediction(sensor);
   updateCropRecommendationUI(crop);
-  alert("Dashboard updated.");
 };
 
 window.exportData = async () => {
@@ -205,8 +262,10 @@ window.dismissAlert = () => {
   document.getElementById("alertContainer").style.display = "none";
 };
 
-// ===== AUTO INITIALIZE =====
+// ===== INIT =====
 window.onload = () => {
   window.refreshData();
+  fetchWeather();
   setInterval(window.refreshData, CONFIG.UPDATE_INTERVAL);
+  setInterval(fetchWeather, CONFIG.WEATHER_UPDATE_INTERVAL);
 };
