@@ -285,3 +285,58 @@ elements.stopIrrigation.addEventListener("click", () => {
 window.dismissAlert = () => {
   document.getElementById("alertContainer").style.display = "none";
 };
+
+/**dummy mock data logic */
+
+// async function fetchSensorData() {
+//     try {
+//         const response = await fetch('/api/sensor_data');
+//         const data = await response.json();
+
+//         document.getElementById('nitrogenValue').textContent = data.nitrogen;
+//         document.getElementById('phosphorusValue').textContent = data.phosphorus;
+//         document.getElementById('potassiumValue').textContent = data.potassium;
+//         document.getElementById('phValue').textContent = data.soil_pH;
+//         document.getElementById('moistureSummary').textContent = `${data.moisture}%`;
+//         document.getElementById('temperatureValue').textContent = data.temperature;
+//         document.getElementById('humidityValue').textContent = data.humidity;
+//         document.getElementById('npkSummary').textContent = `${data.nitrogen}-${data.phosphorus}-${data.potassium}`;
+//         document.getElementById('tempSummary').textContent = `${data.temperature}°C`;
+//         document.getElementById('humiditySummary').textContent = `${data.humidity}%`;
+
+//         // Update pH progress bar
+//         const phPercentage = (data.soil_pH / 14) * 100;
+//         document.getElementById('phProgress').style.width = `${phPercentage}%`;
+
+//         // Optional: update status fields
+//         document.getElementById('npkUpdated').textContent = formatTime(new Date());
+//         document.getElementById('phUpdated').textContent = formatTime(new Date());
+//         document.getElementById('climateUpdated').textContent = formatTime(new Date());
+//     } catch (err) {
+//         console.error("Sensor Fetch Error:", err);
+//     }
+// }
+
+
+// if (!sensor) {
+//   elements.connectionText.textContent = "Sensor data fetch failed";
+//   return;
+// }
+
+
+// if (CONFIG.WEATHER_API_KEY === "your_weatherapi_key_here") {
+//   console.warn("⚠️ Please set a valid weather API key in CONFIG.");
+// }
+
+
+// window.refreshData = async () => {
+//   try {
+//     const sensor = await fetchSensorData();
+//     if (!sensor) return;
+//     updateSensorUI(sensor);
+//     const crop = await fetchCropPrediction(sensor);
+//     updateCropRecommendationUI(crop);
+//   } catch (err) {
+//     console.error("Refresh Error:", err);
+//   }
+// };
