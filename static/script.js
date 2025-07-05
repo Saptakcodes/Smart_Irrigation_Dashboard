@@ -1,5 +1,3 @@
-// =================== UPDATED SCRIPT.JS ===================
-
 const CONFIG = {
   API_BASE_URL: "http://localhost:5000",
   UPDATE_INTERVAL: 5000,
@@ -14,7 +12,7 @@ const CROP_ICONS = {
   Maize: "🌽",
   Potato: "🥔",
   Cotton: "🌸",
-  Sugarcane: "🏋"
+  Sugarcane: "🎋"
 };
 
 const elements = {
@@ -52,7 +50,58 @@ const elements = {
   irrigationButton: document.getElementById("irrigationButton")
 };
 
-// Fetch sensor JSON
+// ===== THEME TOGGLE =====
+const themeToggle = document.getElementById("themeToggle");
+
+themeToggle.addEventListener("click", () => {
+  const root = document.documentElement;
+  const isDark = root.classList.toggle("dark");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+
+  const moonIcon = themeToggle.querySelector(".fa-moon");
+  const sunIcon = themeToggle.querySelector(".fa-sun");
+  if (isDark) {
+    moonIcon.classList.add("hidden");
+    sunIcon.classList.remove("hidden");
+  } else {
+    moonIcon.classList.remove("hidden");
+    sunIcon.classList.add("hidden");
+  }
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  const savedTheme = localStorage.getItem("theme");
+  const root = document.documentElement;
+  const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  root.classList.toggle("dark", isDark);
+
+  const moonIcon = themeToggle.querySelector(".fa-moon");
+  const sunIcon = themeToggle.querySelector(".fa-sun");
+  if (isDark) {
+    moonIcon.classList.add("hidden");
+    sunIcon.classList.remove("hidden");
+  } else {
+    moonIcon.classList.remove("hidden");
+    sunIcon.classList.add("hidden");
+  }
+});
+
+// ===== MODE TOGGLE =====
+elements.systemModeToggle.addEventListener("change", () => {
+  const isManual = elements.systemModeToggle.checked;
+  elements.systemModeText.textContent = isManual ? "Manual" : "Auto";
+  elements.irrigationButton.disabled = !isManual;
+
+  if (isManual) {
+    elements.irrigationButton.classList.remove("opacity-50", "cursor-not-allowed");
+    elements.irrigationButton.classList.add("hover:-translate-y-0.5", "hover:shadow-lg", "hover:from-blue-600", "hover:to-blue-700");
+  } else {
+    elements.irrigationButton.classList.add("opacity-50", "cursor-not-allowed");
+    elements.irrigationButton.classList.remove("hover:-translate-y-0.5", "hover:shadow-lg", "hover:from-blue-600", "hover:to-blue-700");
+  }
+});
+
+// ===== SENSOR FETCH =====
 async function fetchSensorData() {
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/api/sensor_data`);
@@ -64,8 +113,10 @@ async function fetchSensorData() {
   }
 }
 
+// ===== UPDATE DASHBOARD UI =====
 function updateSensorUI(data) {
   const now = new Date();
+
   elements.moistureValue.textContent = data.soil_moisture;
   elements.moistureProgress.style.width = `${data.soil_moisture}%`;
   elements.moistureStatus.textContent = data.soil_moisture < CONFIG.MOISTURE_THRESHOLD ? "Irrigation Needed" : "Optimal";
@@ -97,6 +148,7 @@ function updateSensorUI(data) {
   elements.moistureSummary.textContent = `${data.soil_moisture}%`;
 }
 
+// ===== PREDICT CROP =====
 async function fetchCropPrediction(data) {
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/predict_crop`, {
@@ -124,6 +176,7 @@ function updateCropRecommendationUI(crop) {
   elements.cropsUpdated.textContent = new Date().toLocaleTimeString();
 }
 
+// ===== BUTTON ACTIONS =====
 window.refreshData = async () => {
   const sensor = await fetchSensorData();
   if (!sensor) return;
@@ -152,6 +205,7 @@ window.dismissAlert = () => {
   document.getElementById("alertContainer").style.display = "none";
 };
 
+// ===== AUTO INITIALIZE =====
 window.onload = () => {
   window.refreshData();
   setInterval(window.refreshData, CONFIG.UPDATE_INTERVAL);
