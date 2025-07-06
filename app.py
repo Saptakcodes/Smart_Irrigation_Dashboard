@@ -117,6 +117,17 @@ def get_sensor_data():
     except Exception as e:
         return jsonify({'error': f'Serial read error: {str(e)}'}), 500
 
+
+@app.route('/upload_sensor_data', methods=['POST'])
+def upload_sensor_data():
+    try:
+        data = request.json
+        with open('sensor_data.json', 'w') as f:
+            json.dump(data, f)
+        return jsonify({'status': 'success'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ==== Run App ====
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
