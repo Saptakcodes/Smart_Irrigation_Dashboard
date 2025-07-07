@@ -61,9 +61,17 @@ def home():
 
 @app.route('/api/sensor_data', methods=['GET'])
 def get_sensor_data():
-    if latest_sensor_data:
-        return jsonify(latest_sensor_data)
-    return '', 204
+    try:
+        with open("/home/aanchal/Desktop/Smart_Irrigation_Dashboard/sensor_data.json", "r") as f:
+            data = json.load(f)
+        return jsonify(data), 200
+    except FileNotFoundError:
+        return jsonify({'error': 'sensor_data.json not found'}), 404
+    except json.JSONDecodeError:
+        return jsonify({'error': 'sensor_data.json is not valid JSON'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/predict_crop', methods=['POST'])
 def crop_prediction():
