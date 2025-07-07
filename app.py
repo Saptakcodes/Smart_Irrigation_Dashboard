@@ -185,31 +185,32 @@ def get_sensor_data():
         return jsonify({'error': 'Arduino not connected'}), 500
 
     try:
-        if ser.in_waiting:
-            line = ser.readline().decode('utf-8').strip()
-            print("[SERIAL DATA]", line)
+        line = ser.readline().decode('utf-8').strip()
+        if not line:
+            return jsonify({'error': 'Empty serial data'}), 204
 
-            # Clean and parse array string like: "[n, p, k, temp, humidity, ph, moisture]"
-            line = line.strip("[]")
-            values = [float(x.strip()) for x in line.split(',')]
-            if len(values) != 7:
-                return jsonify({'error': 'Invalid sensor data length'}), 400
+        print("[SERIAL DATA]", line)
+        line = line.strip("[]")
+        values = [float(x.strip()) for x in line.split(',')]
 
-            data = {
-                'nitrogen': values[0],
-                'phosphorus': values[1],
-                'potassium': values[2],
-                'temperature': values[3],
-                'humidity': values[4],
-                'ph': values[5],
-                'moisture': values[6],
-                'timestamp': json.dumps(str(line))
-            }
-            return jsonify(data)
-        else:
-            return jsonify({'error': 'No data from Arduino yet'}), 204
+        if len(values) != 7:
+            return jsonify({'error': 'Invalid sensor data length'}), 400
+
+        data = {
+            'nitrogen': values[0],
+            'phosphorus': values[1],
+            'potassium': values[2],
+            'temperature': values[3],
+            'humidity': values[4],
+            'ph': values[5],
+            'moisture': values[6],
+            'timestamp': json.dumps(str(line))
+        }
+        return jsonify(data)
+
     except Exception as e:
         return jsonify({'error': f'Serial read error: {str(e)}'}), 500
+
 
 @app.route('/upload_sensor_data', methods=['POST'])
 def upload_sensor_data():
