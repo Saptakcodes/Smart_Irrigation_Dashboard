@@ -88,7 +88,8 @@ try:
         "irrigation_prediction": "ON" if prediction == 1 else "OFF"
     }
 
-    with open("sensor_data.json", "w") as f:
+    with open("/home/aanchal/Desktop/Smart_Irrigation_Dashboard/sensor_data.json", "w") as f:
+
         json.dump(sensor_dict, f)
 
 
