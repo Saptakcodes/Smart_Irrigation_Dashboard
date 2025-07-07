@@ -62,7 +62,7 @@ def home():
 @app.route('/api/sensor_data', methods=['GET'])
 def get_sensor_data():
     try:
-        with open("../sensor_data.json", "r") as f:  # <- fixed from 'w' to 'r'
+        with open("sensor_data.json", "r") as f:  # <- fixed from 'w' to 'r'
             data = json.load(f)
         return jsonify(data), 200
     except FileNotFoundError:
@@ -102,7 +102,7 @@ def irrigation_prediction():
 def upload_sensor_data():
     try:
         data = request.json
-        with open("../sensor_data.json", "w") as f:
+        with open("sensor_data.json", "w") as f:
             json.dump(data, f)
         return jsonify({'status': 'success'})
     except Exception as e:
