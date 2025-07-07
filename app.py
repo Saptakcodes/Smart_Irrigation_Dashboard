@@ -72,7 +72,7 @@ from ml_logic.predict_irrigation_logic import predict_irrigation
 # ==== Serial Port Setup ====
 # Update the port to match your system
 try:
-    ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=2)  # ⬅️ CHANGE this if needed (e.g., 'COM3' on Windows)
+    ser = serial.Serial('dev/ttyACM0', 9600, timeout=2)  # ⬅️ CHANGE this if needed (e.g., 'COM3' on Windows)
 except Exception as e:
     print(f"[ERROR] Could not connect to Arduino: {e}")
     ser = None
