@@ -135,93 +135,166 @@
 #     app.run(host='0.0.0.0', port=5000, debug=True) #for similar ip 
 
 
-from flask import Flask, render_template, request, jsonify
-import os
-import json
+# from flask import Flask, render_template, request, jsonify
+# import os
+# import json
+# import serial
+
+# # ==== Flask app setup ====
+# template_path = os.path.join(os.path.dirname(__file__), 'templates')
+# static_path = os.path.join(os.path.dirname(__file__), 'static')
+# app = Flask(__name__, template_folder=template_path, static_folder=static_path)
+
+# # ==== Import ML logic ====
+# from ml_logic.predict_crop_logic import predict_crop
+# from ml_logic.predict_irrigation_logic import predict_irrigation
+
+# # ==== Serial Port Setup (Arduino) ====
+# try:
+#     ser = serial.Serial('/dev/ttyACM0', 9600, timeout=5)  # ✅ FIXED PATH
+# except Exception as e:
+#     print(f"[ERROR] Could not connect to Arduino: {e}")
+#     ser = None
+
+# # ==== Routes ====
+# @app.route('/')
+# def home():
+#     return render_template('index.html')
+
+# @app.route('/predict_crop', methods=['POST'])
+# def crop_prediction():
+#     try:
+#         data = request.json
+#         result = predict_crop(data)
+#         return jsonify({'prediction': result})
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
+
+# @app.route('/predict_irrigation', methods=['POST'])
+# def irrigation_prediction():
+#     try:
+#         data = request.json
+#         result = predict_irrigation(data)
+#         return jsonify({'pump_status': result})
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
+
+# @app.route('/api/sensor_data', methods=['GET'])
+# def get_sensor_data():
+#     if not ser:
+#         return jsonify({'error': 'Arduino not connected'}), 500
+
+#     try:
+#         line = ser.readline().decode('utf-8').strip()
+#         if not line:
+#             return jsonify({'error': 'Empty serial data'}), 204
+
+#         print("[SERIAL DATA]", line)
+#         line = line.strip("[]")
+#         values = [float(x.strip()) for x in line.split(',')]
+
+#         if len(values) != 7:
+#             return jsonify({'error': 'Invalid sensor data length'}), 400
+
+#         data = {
+#             'nitrogen': values[0],
+#             'phosphorus': values[1],
+#             'potassium': values[2],
+#             'temperature': values[3],
+#             'humidity': values[4],
+#             'ph': values[5],
+#             'moisture': values[6],
+#             'timestamp': json.dumps(str(line))
+#         }
+#         return jsonify(data)
+
+#     except Exception as e:
+#         return jsonify({'error': f'Serial read error: {str(e)}'}), 500
+
+
+# @app.route('/upload_sensor_data', methods=['POST'])
+# def upload_sensor_data():
+#     try:
+#         data = request.json
+#         with open('sensor_data.json', 'w') as f:
+#             json.dump(data, f)
+#         return jsonify({'status': 'success'}), 200
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
+
+# # ==== Run App ====
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
+
+
+
+
+import threading
 import serial
+import time
+import json
+import os
+from flask import Flask, jsonify, request
 
-# ==== Flask app setup ====
-template_path = os.path.join(os.path.dirname(__file__), 'templates')
-static_path = os.path.join(os.path.dirname(__file__), 'static')
-app = Flask(__name__, template_folder=template_path, static_folder=static_path)
+app = Flask(__name__)
 
-# ==== Import ML logic ====
-from ml_logic.predict_crop_logic import predict_crop
-from ml_logic.predict_irrigation_logic import predict_irrigation
+latest_sensor_data = {}
+ser = None
 
-# ==== Serial Port Setup (Arduino) ====
-try:
-    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=5)  # ✅ FIXED PATH
-except Exception as e:
-    print(f"[ERROR] Could not connect to Arduino: {e}")
-    ser = None
+# Background thread function
+def read_serial_data():
+    global latest_sensor_data
+    while True:
+        try:
+            if ser and ser.in_waiting:
+                line = ser.readline().decode('utf-8').strip()
+                print("[SERIAL DATA]", line)
+                if not line:
+                    continue
+                parts = line.strip("[]").split(",")
+                if len(parts) != 7:
+                    continue
+                values = [float(x.strip()) for x in parts]
 
-# ==== Routes ====
-@app.route('/')
-def home():
-    return render_template('index.html')
+                latest_sensor_data = {
+                    'nitrogen': values[0],
+                    'phosphorus': values[1],
+                    'potassium': values[2],
+                    'temperature': values[3],
+                    'humidity': values[4],
+                    'ph': values[5],
+                    'moisture': values[6],
+                    'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+                }
 
-@app.route('/predict_crop', methods=['POST'])
-def crop_prediction():
-    try:
-        data = request.json
-        result = predict_crop(data)
-        return jsonify({'prediction': result})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        except Exception as e:
+            print("Error reading serial:", e)
+        time.sleep(1)  # adjust if needed
 
-@app.route('/predict_irrigation', methods=['POST'])
-def irrigation_prediction():
-    try:
-        data = request.json
-        result = predict_irrigation(data)
-        return jsonify({'pump_status': result})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+# API to get cached data
 @app.route('/api/sensor_data', methods=['GET'])
 def get_sensor_data():
-    if not ser:
-        return jsonify({'error': 'Arduino not connected'}), 500
+    if latest_sensor_data:
+        return jsonify(latest_sensor_data)
+    else:
+        return '', 204
 
-    try:
-        line = ser.readline().decode('utf-8').strip()
-        if not line:
-            return jsonify({'error': 'Empty serial data'}), 204
+# Try to open serial
+try:
+    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=2)
+    print("✅ Serial connected.")
+    time.sleep(2)
+except Exception as e:
+    print(f"[ERROR] Could not connect to Arduino: {e}")
 
-        print("[SERIAL DATA]", line)
-        line = line.strip("[]")
-        values = [float(x.strip()) for x in line.split(',')]
+# Start background thread
+if ser:
+    threading.Thread(target=read_serial_data, daemon=True).start()
 
-        if len(values) != 7:
-            return jsonify({'error': 'Invalid sensor data length'}), 400
-
-        data = {
-            'nitrogen': values[0],
-            'phosphorus': values[1],
-            'potassium': values[2],
-            'temperature': values[3],
-            'humidity': values[4],
-            'ph': values[5],
-            'moisture': values[6],
-            'timestamp': json.dumps(str(line))
-        }
-        return jsonify(data)
-
-    except Exception as e:
-        return jsonify({'error': f'Serial read error: {str(e)}'}), 500
-
-
-@app.route('/upload_sensor_data', methods=['POST'])
-def upload_sensor_data():
-    try:
-        data = request.json
-        with open('sensor_data.json', 'w') as f:
-            json.dump(data, f)
-        return jsonify({'status': 'success'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# ==== Run App ====
+# Run app
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
