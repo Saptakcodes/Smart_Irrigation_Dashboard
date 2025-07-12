@@ -12,62 +12,71 @@ from ml_logic.predict_crop_logic       import predict_crop
 from ml_logic.predict_irrigation_logic import predict_irrigation
 
 # ==== Globals ====
-latest_sensor_data = {}          # in‑memory cache
-JSON_PATH = os.path.join(BASE_DIR, "sensor_data.json")  # optional on‑disk copy
+latest_sensor_data = {}  # in-memory cache
+JSON_PATH = os.path.join(BASE_DIR, "sensor_data.json")
 
-# ==== Open serial once ====
+# ==== Setup Serial Port ====
 try:
     ser = serial.Serial('/dev/ttyACM0', 9600, timeout=2)
     time.sleep(2)
-    print("✅ Serial connected.")
+    print("✅ Serial connected to /dev/ttyACM0.")
 except Exception as e:
-    print(f"[ERROR] Could not open /dev/ttyACM0: {e}")
+    print(f"❌ Serial connection failed: {e}")
     ser = None
 
-# ==== Background thread to read Arduino ====
+# ==== Background Serial Reader ====
 def read_serial_loop():
     while True:
         try:
             if ser and ser.in_waiting:
                 raw = ser.readline().decode('utf-8').strip()
-                if raw:
-                    vals = [float(x.strip()) for x in raw.strip("[]").split(",")]
-                    if len(vals) != 7:
-                        continue
+                print("📥 Raw from Arduino:", raw)
 
-                    # update cache
-                    latest_sensor_data.update({
-                        "nitrogen":   vals[0],
-                        "phosphorus": vals[1],
-                        "potassium":  vals[2],
-                        "temperature":vals[3],
-                        "humidity":   vals[4],
-                        "ph":         vals[5],
-                        "moisture":   vals[6],
-                        "timestamp":  time.strftime('%Y-%m-%d %H:%M:%S')
-                    })
+                if not raw:
+                    continue
 
-                    # (optional) also dump to file so you can inspect it
-                    with open(JSON_PATH, "w") as f:
-                        json.dump(latest_sensor_data, f)
+                values = [float(x.strip()) for x in raw.strip("[]").split(",")]
+
+                if len(values) != 7:
+                    print(f"❌ Expected 7 values, got {len(values)} — Skipping")
+                    continue
+
+                latest_sensor_data.update({
+                    "nitrogen": values[0],
+                    "phosphorus": values[1],
+                    "potassium": values[2],
+                    "temperature": values[3],
+                    "humidity": values[4],
+                    "ph": values[5],
+                    "moisture": values[6],
+                    "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
+                })
+
+                print("✅ Parsed Sensor Data:", latest_sensor_data)
+
+                # Save to file
+                with open(JSON_PATH, "w") as f:
+                    json.dump(latest_sensor_data, f)
 
         except Exception as e:
-            print(f"[ERROR] Serial read: {e}")
-        time.sleep(0.5)
+            print(f"[ERROR] Serial Read Loop: {e}")
+        time.sleep(1)
 
 if ser:
     threading.Thread(target=read_serial_loop, daemon=True).start()
 
-# ==== Routes ====
+# ==== Flask Routes ====
 @app.route("/")
 def home():
     return render_template("index.html")
 
-@app.route("/api/sensor_data")
+@app.route("/api/sensor_data", methods=["GET"])
 def api_sensor_data():
     if not latest_sensor_data:
-        return jsonify({"error": "No data yet"}), 204
-    return jsonify(latest_sensor_data)
+        print("⚠️  No sensor data yet")
+        return '', 204
+    print("📤 Returning sensor data to frontend:", latest_sensor_data)
+    return jsonify(latest_sensor_data), 200
 
 @app.route("/predict_crop", methods=["POST"])
 def api_predict_crop():
@@ -75,6 +84,7 @@ def api_predict_crop():
         result = predict_crop(request.json)
         return jsonify({"crop": result})
     except Exception as e:
+        print(f"❌ Crop Prediction Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/predict_irrigation", methods=["POST"])
@@ -83,19 +93,22 @@ def api_predict_irrigation():
         result = predict_irrigation(request.json)
         return jsonify({"pump_status": result})
     except Exception as e:
+        print(f"❌ Irrigation Prediction Error: {e}")
         return jsonify({"error": str(e)}), 500
 
-# optional manual upload endpoint remains
 @app.route("/upload_sensor_data", methods=["POST"])
 def upload_sensor_data():
     try:
+        data = request.json
         with open(JSON_PATH, "w") as f:
-            json.dump(request.json, f)
-        latest_sensor_data.update(request.json)
+            json.dump(data, f)
+        latest_sensor_data.update(data)
+        print("📦 Manual upload received and saved:", latest_sensor_data)
         return jsonify({"status": "success"})
     except Exception as e:
+        print(f"❌ Upload Error: {e}")
         return jsonify({"error": str(e)}), 500
 
-# ==== Run ====
+# ==== Run Server ====
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
