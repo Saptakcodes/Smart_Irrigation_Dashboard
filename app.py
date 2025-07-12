@@ -1,11 +1,28 @@
 from flask import Flask, render_template, request, jsonify
 import os, json, serial, time, threading
+from ml_logic.predict_irrigation_logic import predict_irrigation
 
-import RPi.GPIO as GPIO
+# ---- GPIO setup (safe) ------------------------------------------------
+try:
+    import RPi.GPIO as GPIO
+    ON_PI = True
+except (RuntimeError, ModuleNotFoundError):
+    # We’re on a dev machine – create a dummy interface
+    ON_PI = False
+    class GPIOStub:
+        BCM = OUT = LOW = HIGH = None
+        def setmode(*a, **k): pass
+        def setup(*a, **k): pass
+        def output(*a, **k): pass
+        def cleanup(*a, **k): pass
+    GPIO = GPIOStub()
 
-PUMP_PIN = 17   #pump pin example
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(PUMP_PIN, GPIO.OUT, initial=GPIO.LOW)
+PUMP_PIN = 17                # update to the real GPIO number later
+if ON_PI:
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(PUMP_PIN, GPIO.OUT, initial=GPIO.LOW)
+# ----------------------------------------------------------------------
+
 
 
 # ==== Flask setup ====
@@ -163,6 +180,21 @@ def start_manual_irrigation():
 def stop_manual_irrigation():
     GPIO.output(PUMP_PIN, GPIO.LOW)
     return jsonify({"status": "Pump OFF manually"}), 200
+
+##########Irrigation Card#########
+@app.route("/api/irrigation_needed")
+def api_irrigation_needed():
+    if not latest_sensor_data:
+        return jsonify({"error": "No sensor data"}), 204
+
+    # map keys for the model
+    payload = {
+        "temperature": latest_sensor_data["temperature"],
+        "humidity":    latest_sensor_data["humidity"],
+        "soil_moisture": latest_sensor_data["moisture"],
+    }
+    needed = predict_irrigation(payload)   # returns 1 / 0
+    return jsonify({"needed": bool(needed)})
 
 
 
