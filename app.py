@@ -5,22 +5,23 @@ from ml_logic.predict_irrigation_logic import predict_irrigation
 # ---- GPIO setup (safe) ------------------------------------------------
 try:
     import RPi.GPIO as GPIO
-    ON_PI = True
-except (RuntimeError, ModuleNotFoundError):
-    # We’re on a dev machine – create a dummy interface
-    ON_PI = False
-    class GPIOStub:
-        BCM = OUT = LOW = HIGH = None
-        def setmode(*a, **k): pass
-        def setup(*a, **k): pass
-        def output(*a, **k): pass
-        def cleanup(*a, **k): pass
-    GPIO = GPIOStub()
-
-PUMP_PIN = 17                # update to the real GPIO number later
-if ON_PI:
+    PUMP_PIN = 17                 # set your relay pin here
     GPIO.setmode(GPIO.BCM)
+    GPIO.setwarnings(False)
     GPIO.setup(PUMP_PIN, GPIO.OUT, initial=GPIO.LOW)
+    hw_gpio_ok = True
+    print("✅  RPi.GPIO initialised, pump pin ready.")
+except (RuntimeError, ImportError) as e:
+    # Use a dummy object so the rest of the code keeps working
+    class _MockGPIO:
+        BCM = OUT = HIGH = LOW = None
+        def setup(*a, **k):  pass
+        def output(*a, **k): pass
+        def setmode(*a):     pass
+        def setwarnings(*a): pass
+    GPIO = _MockGPIO()
+    hw_gpio_ok = False
+    print(f"⚠️  GPIO unavailable – running in mock mode ({e})")
 # ----------------------------------------------------------------------
 
 
