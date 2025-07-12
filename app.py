@@ -110,5 +110,12 @@ def upload_sensor_data():
         return jsonify({"error": str(e)}), 500
 
 # ==== Run Server ====
+# ==== Run Server ====
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True,          # keep debugger / hot‑reload off
+        use_reloader=False   # <‑‑ THE important line
+    )
+
