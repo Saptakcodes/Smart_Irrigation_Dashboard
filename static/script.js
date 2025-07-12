@@ -269,3 +269,80 @@ async function refreshData() {
     setConnection(false);
   }
 }
+
+
+/**pump */
+async function callPump(url) {
+  await fetch(url, { method: "POST" });
+}
+
+elements.startIrrigation.addEventListener("click", () => {
+  callPump("/pump/on");
+  alert("✅ Pump started (manual)");
+});
+
+elements.stopIrrigation.addEventListener("click", () => {
+  callPump("/pump/off");
+  alert("🛑 Pump stopped");
+});
+
+
+//pump manual
+async function sendIrrigationCommand(mins) {
+  await fetch("/start_manual_irrigation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ minutes: mins })
+  });
+  alert(`🚿 Pump will run for ${mins} min`);
+}
+
+document.querySelectorAll(".duration-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const mins = parseInt(btn.dataset.minutes, 10);
+    sendIrrigationCommand(mins);
+    elements.irrigationDurationOptions.classList.add("hidden");
+  });
+});
+
+// ────────────────────────────────────────────────
+//  GET irrigation recommendation
+async function fetchIrrigationNeeded() {
+  const res = await fetch("/api/irrigation_needed");
+  if (!res.ok) return null;
+  const { needed } = await res.json();
+  return needed;   // true / false
+}
+
+// update the card
+function updateIrrigationNeededUI(needed) {
+  const answer = needed ? "YES ✅" : "NO 🛑";
+  const el = document.getElementById("irrigationNeededAnswer");
+  const stamp = document.getElementById("irrigationNeededUpdated");
+
+  el.textContent = answer;
+  el.className =
+    "text-center text-4xl font-bold py-6 rounded-xl transition-all duration-300 " +
+    (needed
+      ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 border border-red-300 dark:border-red-700"
+      : "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-200 border border-green-300 dark:border-green-700");
+
+  stamp.textContent = new Date().toLocaleTimeString();
+}
+
+// call it whenever you refresh sensor data
+async function refreshData() {
+  const sensor = await fetchSensorData();
+  if (!sensor) return;
+
+  updateSensorUI(sensor);
+
+  // NEW: irrigation needed?
+  const needed = await fetchIrrigationNeeded();
+  if (needed !== null) updateIrrigationNeededUI(needed);
+
+  // crop recommendation as before …
+}
+
+
+

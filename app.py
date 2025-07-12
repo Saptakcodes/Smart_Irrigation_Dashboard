@@ -1,6 +1,13 @@
 from flask import Flask, render_template, request, jsonify
 import os, json, serial, time, threading
 
+import RPi.GPIO as GPIO
+
+PUMP_PIN = 17   #pump pin example
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PUMP_PIN, GPIO.OUT, initial=GPIO.LOW)
+
+
 # ==== Flask setup ====
 BASE_DIR      = os.path.dirname(__file__)
 template_path = os.path.join(BASE_DIR, 'templates')
@@ -115,6 +122,49 @@ def upload_sensor_data():
     except Exception as e:
         print(f"❌ Upload Error: {e}")
         return jsonify({"error": str(e)}), 500
+    
+#############PUMP########################
+
+#PUMP AUTO
+
+@app.route("/start_manual_irrigation", methods=["POST"])
+def start_irrigation():
+    GPIO.output(PUMP_PIN, GPIO.HIGH)
+    return jsonify({"status": "Pump turned ON manually"})
+
+@app.route("/stop_manual_irrigation", methods=["POST"])
+def stop_irrigation():
+    GPIO.output(PUMP_PIN, GPIO.LOW)
+    return jsonify({"status": "Pump turned OFF manually"})
+
+#PUMP MANUAL
+def _auto_off(delay_s: int):
+    time.sleep(delay_s)
+    GPIO.output(PUMP_PIN, GPIO.LOW)
+    print(f"⏹️  Pump auto‑stopped after {delay_s//60} min")
+
+# ────────────────────────────────────────────────
+@app.route("/start_manual_irrigation", methods=["POST"])
+def start_manual_irrigation():
+    """
+    Body example: { "minutes": 10 }
+    """
+    data = request.get_json(silent=True) or {}
+    minutes = int(data.get("minutes", 5))        # default 5 min
+    if minutes not in (5, 10, 15, 30):
+        return jsonify({"error": "Allowed durations: 5, 10, 15, 30"}), 400
+
+    GPIO.output(PUMP_PIN, GPIO.HIGH)
+    threading.Thread(target=_auto_off, args=(minutes * 60,), daemon=True).start()
+    return jsonify({"status": f"Pump ON for {minutes} minutes"}), 200
+
+# ────────────────────────────────────────────────
+@app.route("/stop_manual_irrigation", methods=["POST"])
+def stop_manual_irrigation():
+    GPIO.output(PUMP_PIN, GPIO.LOW)
+    return jsonify({"status": "Pump OFF manually"}), 200
+
+
 
 # ==== Run Server ====
 # ==== Run Server ====
