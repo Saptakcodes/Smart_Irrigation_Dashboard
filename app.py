@@ -78,14 +78,21 @@ def api_sensor_data():
     print("📤 Returning sensor data to frontend:", latest_sensor_data)
     return jsonify(latest_sensor_data), 200
 
+# in app.py
 @app.route("/predict_crop", methods=["POST"])
 def api_predict_crop():
     try:
-        result = predict_crop(request.json)
+        data = request.json.copy()
+
+        # map frontend → model names
+        data["soil_pH"]        = data.pop("ph",        None)
+        data["soil_moisture"]  = data.pop("moisture",  None)
+
+        result = predict_crop(data)
         return jsonify({"crop": result})
     except Exception as e:
-        print(f"❌ Crop Prediction Error: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/predict_irrigation", methods=["POST"])
 def api_predict_irrigation():
