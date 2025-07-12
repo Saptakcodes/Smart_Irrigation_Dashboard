@@ -23,7 +23,9 @@ def predict_crop(input_dict):
         input_df = input_df[expected_columns]
 
         # Predict (encoded)
-        encoded_prediction = model.predict(input_df)
+        # encoded_prediction = model.predict(input_df)
+        encoded_prediction = model.predict(input_df.values)
+
 
         # Decode to actual crop name
         actual_prediction = label_encoder.inverse_transform(encoded_prediction)

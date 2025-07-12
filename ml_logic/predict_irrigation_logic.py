@@ -16,7 +16,8 @@ def predict_irrigation(input_dict):
         # Reorder to match model training order
         input_df = input_df[features]
 
-        prediction = model.predict(input_df)[0]
+        prediction = model.predict(input_df.values)[0]
+
         return "ON" if prediction == 1 else "OFF"
 
     except Exception as e:
