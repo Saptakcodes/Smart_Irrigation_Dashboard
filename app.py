@@ -33,7 +33,6 @@ def read_serial_data():
         try:
             if ser and ser.in_waiting:
                 line = ser.readline().decode('utf-8').strip()
-                print("[SERIAL DATA]", line)
                 if not line:
                     continue
                 values = [float(x.strip()) for x in line.strip("[]").split(",")]
@@ -50,6 +49,11 @@ def read_serial_data():
                     'moisture': values[6],
                     'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
                 }
+
+                # 🔽 WRITE JSON so the route can read it
+                with open("sensor_data.json", "w") as f:
+                    json.dump(latest_sensor_data, f)
+
         except Exception as e:
             print(f"[ERROR] Reading serial: {e}")
         time.sleep(1)
