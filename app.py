@@ -3,25 +3,27 @@ import os, json, serial, time, threading
 from ml_logic.predict_irrigation_logic import predict_irrigation
 
 # ---- GPIO setup (safe) ------------------------------------------------
-try:
-    import RPi.GPIO as GPIO
-    PUMP_PIN = 17                 # set your relay pin here
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
-    GPIO.setup(PUMP_PIN, GPIO.OUT, initial=GPIO.LOW)
-    hw_gpio_ok = True
-    print("✅  RPi.GPIO initialised, pump pin ready.")
-except (RuntimeError, ImportError) as e:
-    # Use a dummy object so the rest of the code keeps working
-    class _MockGPIO:
-        BCM = OUT = HIGH = LOW = None
-        def setup(*a, **k):  pass
-        def output(*a, **k): pass
-        def setmode(*a):     pass
-        def setwarnings(*a): pass
-    GPIO = _MockGPIO()
-    hw_gpio_ok = False
-    print(f"⚠️  GPIO unavailable – running in mock mode ({e})")
+# ------------------------------------------------------------------
+# 🟢  GPIO / Pump control – now using pigpio instead of RPi.GPIO
+# ------------------------------------------------------------------
+import pigpio                         # ← NEW
+PUMP_PIN = 17                         # ⚠️ change if your relay is on another pin
+
+pi = pigpio.pi()                      # connect to the pigpio daemon
+if not pi.connected:                  #‑‑ fails if pigpiod not running
+    print("❌ pigpio daemon not running!  Run: sudo systemctl start pigpiod")
+    # fall back to a dummy object so app still works without GPIO
+    class _MockPi:
+        def write(self, pin, value):              pass
+        def set_mode(self, pin, mode):            pass
+        def stop(self):                           pass
+    pi = _MockPi()
+    gpio_available = False
+else:
+    pi.set_mode(PUMP_PIN, pigpio.OUTPUT)
+    pi.write(PUMP_PIN, 0)              # ensure pump is OFF at startup
+    print(f"✅ pigpio ready on GPIO {PUMP_PIN}.")
+    gpio_available = True
 # ----------------------------------------------------------------------
 
 
@@ -147,40 +149,41 @@ def upload_sensor_data():
 
 @app.route("/start_manual_irrigation", methods=["POST"])
 def start_irrigation():
-    GPIO.output(PUMP_PIN, GPIO.HIGH)
+    pi.write(PUMP_PIN, 1)
     return jsonify({"status": "Pump turned ON manually"})
 
 @app.route("/stop_manual_irrigation", methods=["POST"])
 def stop_irrigation():
-    GPIO.output(PUMP_PIN, GPIO.LOW)
+    pi.write(PUMP_PIN, 0)
     return jsonify({"status": "Pump turned OFF manually"})
 
 #PUMP MANUAL
+# ---------- Manual / timed pump control ---------------------------------
 def _auto_off(delay_s: int):
     time.sleep(delay_s)
-    GPIO.output(PUMP_PIN, GPIO.LOW)
+    pi.write(PUMP_PIN, 0)
     print(f"⏹️  Pump auto‑stopped after {delay_s//60} min")
 
-# ────────────────────────────────────────────────
 @app.route("/start_manual_irrigation", methods=["POST"])
 def start_manual_irrigation():
     """
-    Body example: { "minutes": 10 }
+    POST JSON: { "minutes": 5|10|15|30 }
     """
     data = request.get_json(silent=True) or {}
-    minutes = int(data.get("minutes", 5))        # default 5 min
+    minutes = int(data.get("minutes", 5))
     if minutes not in (5, 10, 15, 30):
         return jsonify({"error": "Allowed durations: 5, 10, 15, 30"}), 400
 
-    GPIO.output(PUMP_PIN, GPIO.HIGH)
+    pi.write(PUMP_PIN, 1)
     threading.Thread(target=_auto_off, args=(minutes * 60,), daemon=True).start()
     return jsonify({"status": f"Pump ON for {minutes} minutes"}), 200
 
-# ────────────────────────────────────────────────
 @app.route("/stop_manual_irrigation", methods=["POST"])
 def stop_manual_irrigation():
-    GPIO.output(PUMP_PIN, GPIO.LOW)
+    pi.write(PUMP_PIN, 0)
     return jsonify({"status": "Pump OFF manually"}), 200
+# ------------------------------------------------------------------------
+
 
 ##########Irrigation Card#########
 @app.route("/api/irrigation_needed")
