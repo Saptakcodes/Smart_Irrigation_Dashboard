@@ -1,232 +1,205 @@
+/* =========================================================
+   Smart‑Irrigation Dashboard – main client script
+   Works with app.py that owns the Arduino serial port
+   ========================================================= */
+
 const CONFIG = {
-  API_BASE_URL: "http://localhost:5000",
-  UPDATE_INTERVAL: 5000,
-  WEATHER_UPDATE_INTERVAL: 300000,
+  API_BASE_URL: window.location.origin,      // auto‑detect http://<host>:5000
+  UPDATE_INTERVAL: 5000,                     // ms
+  WEATHER_UPDATE_INTERVAL: 300000,           // ms
   MOISTURE_THRESHOLD: 30,
   PH_THRESHOLD_LOW: 5.5,
   PH_THRESHOLD_HIGH: 7.5,
   WEATHER_API_KEY: "your_weatherapi_key_here"
 };
 
-const CROP_ICONS = {
-  Rice: "🌾",
-  Maize: "🌽",
-  Potato: "🥔",
-  Cotton: "🌸",
-  Sugarcane: "🎋"
-};
-
+/* ---------- Icons ---------- */
+const CROP_ICONS = { Rice: "🌾", Maize: "🌽", Potato: "🥔", Cotton: "🌸", Sugarcane: "🎋" };
 const WEATHER_ICONS = {
-  "Sunny": "☀️",
-  "Clear": "🌞",
-  "Partly cloudy": "⛅",
-  "Cloudy": "☁️",
-  "Rain": "🌧️",
-  "Overcast": "🌫️",
-  "Mist": "🌫️",
-  "Thunderstorm": "🌩️",
-  "Snow": "❄️"
+  Sunny: "☀️", Clear: "🌞", "Partly cloudy": "⛅", Cloudy: "☁️",
+  Rain: "🌧️", Overcast: "🌫️", Mist: "🌫️", Thunderstorm: "🌩️", Snow: "❄️"
 };
 
+/* ---------- DOM Shortcuts ---------- */
+const $ = id => document.getElementById(id);
 const elements = {
-  connectionStatus: document.getElementById("connectionStatus"),
-  connectionText: document.getElementById("connectionText"),
-  moistureValue: document.getElementById("moistureValue"),
-  moistureProgress: document.getElementById("moistureProgress"),
-  moistureStatus: document.getElementById("moistureStatus"),
-  moistureUpdated: document.getElementById("moistureUpdated"),
-  nitrogenValue: document.getElementById("nitrogenValue"),
-  phosphorusValue: document.getElementById("phosphorusValue"),
-  potassiumValue: document.getElementById("potassiumValue"),
-  npkUpdated: document.getElementById("npkUpdated"),
-  temperatureValue: document.getElementById("temperatureValue"),
-  humidityValue: document.getElementById("humidityValue"),
-  climateStatus: document.getElementById("climateStatus"),
-  climateUpdated: document.getElementById("climateUpdated"),
-  phValue: document.getElementById("phValue"),
-  phProgress: document.getElementById("phProgress"),
-  phStatus: document.getElementById("phStatus"),
-  phUpdated: document.getElementById("phUpdated"),
-  irrigationStatus: document.getElementById("irrigationStatus"),
-  lastWatering: document.getElementById("lastWatering"),
-  waterLevel: document.getElementById("waterLevel"),
-  systemUpdated: document.getElementById("systemUpdated"),
-  systemModeToggle: document.getElementById("systemModeToggle"),
-  systemModeText: document.getElementById("systemModeText"),
-  lastSync: document.getElementById("lastSync"),
-  singleCropRecommendation: document.getElementById("singleCropRecommendation"),
-  npkSummary: document.getElementById("npkSummary"),
-  tempSummary: document.getElementById("tempSummary"),
-  humiditySummary: document.getElementById("humiditySummary"),
-  moistureSummary: document.getElementById("moistureSummary"),
-  cropsUpdated: document.getElementById("cropsUpdated"),
-  irrigationButton: document.getElementById("irrigationButton"),
-  weatherIcon: document.getElementById("weatherIcon"),
-  weatherTemp: document.getElementById("weatherTemp"),
-  weatherDesc: document.getElementById("weatherDesc"),
-  feelsLike: document.getElementById("feelsLike"),
-  pressure: document.getElementById("pressure"),
-  windSpeed: document.getElementById("windSpeed"),
-  weatherUpdated: document.getElementById("weatherUpdated"),
-  manualIrrigationControls: document.getElementById("manualIrrigationControls"),
-  startIrrigation: document.getElementById("startIrrigation"),
-  stopIrrigation: document.getElementById("stopIrrigation"),
-  irrigationDurationOptions: document.getElementById("irrigationDurationOptions")
+  connectionStatus: $("connectionStatus"), connectionText: $("connectionText"),
+
+  moistureValue: $("moistureValue"), moistureProgress: $("moistureProgress"),
+  moistureStatus: $("moistureStatus"), moistureUpdated: $("moistureUpdated"),
+
+  nitrogenValue: $("nitrogenValue"), phosphorusValue: $("phosphorusValue"),
+  potassiumValue: $("potassiumValue"), npkUpdated: $("npkUpdated"),
+
+  temperatureValue: $("temperatureValue"), humidityValue: $("humidityValue"),
+  climateStatus: $("climateStatus"), climateUpdated: $("climateUpdated"),
+
+  phValue: $("phValue"), phProgress: $("phProgress"),
+  phStatus: $("phStatus"), phUpdated: $("phUpdated"),
+
+  irrigationStatus: $("irrigationStatus"), lastWatering: $("lastWatering"),
+  waterLevel: $("waterLevel"), systemUpdated: $("systemUpdated"),
+
+  systemModeToggle: $("systemModeToggle"), systemModeText: $("systemModeText"),
+
+  lastSync: $("lastSync"),
+
+  singleCropRecommendation: $("singleCropRecommendation"),
+  npkSummary: $("npkSummary"), tempSummary: $("tempSummary"),
+  humiditySummary: $("humiditySummary"), moistureSummary: $("moistureSummary"),
+  cropsUpdated: $("cropsUpdated"),
+
+  irrigationButton: $("irrigationButton"),
+
+  weatherIcon: $("weatherIcon"), weatherTemp: $("weatherTemp"),
+  weatherDesc: $("weatherDesc"), feelsLike: $("feelsLike"),
+  pressure: $("pressure"), windSpeed: $("windSpeed"), weatherUpdated: $("weatherUpdated"),
+
+  manualIrrigationControls: $("manualIrrigationControls"),
+  startIrrigation: $("startIrrigation"), stopIrrigation: $("stopIrrigation"),
+  irrigationDurationOptions: $("irrigationDurationOptions")
 };
 
-// THEME TOGGLE
-const themeToggle = document.getElementById("themeToggle");
-
+/* ---------- Theme Toggle ---------- */
+const themeToggle = $("themeToggle");
 themeToggle.addEventListener("click", () => {
   const root = document.documentElement;
   const isDark = root.classList.toggle("dark");
   localStorage.setItem("theme", isDark ? "dark" : "light");
-
-  const moonIcon = themeToggle.querySelector(".fa-moon");
-  const sunIcon = themeToggle.querySelector(".fa-sun");
-  moonIcon.classList.toggle("hidden", isDark);
-  sunIcon.classList.toggle("hidden", !isDark);
+  themeToggle.querySelector(".fa-moon").classList.toggle("hidden", isDark);
+  themeToggle.querySelector(".fa-sun").classList.toggle("hidden", !isDark);
 });
 
-// INIT
+/* ---------- Init on DOM ready ---------- */
 window.addEventListener("DOMContentLoaded", () => {
-  // THEME SETUP
+  // initial theme
   const savedTheme = localStorage.getItem("theme");
   const root = document.documentElement;
-  const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const isDark = savedTheme === "dark" ||
+                 (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
   root.classList.toggle("dark", isDark);
+  themeToggle.querySelector(".fa-moon").classList.toggle("hidden", isDark);
+  themeToggle.querySelector(".fa-sun").classList.toggle("hidden", !isDark);
 
-  const moonIcon = themeToggle.querySelector(".fa-moon");
-  const sunIcon = themeToggle.querySelector(".fa-sun");
-  moonIcon.classList.toggle("hidden", isDark);
-  sunIcon.classList.toggle("hidden", !isDark);
+  // set manual / auto button states
+  toggleManualMode(elements.systemModeToggle.checked);
 
-  // IRRIGATION BUTTON STATE
-  const isManual = elements.systemModeToggle.checked;
-  elements.systemModeText.textContent = isManual ? "Manual" : "Auto";
-  elements.irrigationButton.disabled = !isManual;
-  elements.manualIrrigationControls.classList.toggle("hidden", !isManual);
-
-  if (isManual) {
-    elements.irrigationButton.classList.remove("opacity-50", "cursor-not-allowed");
-  } else {
-    elements.irrigationButton.classList.add("opacity-50", "cursor-not-allowed");
-  }
-
-  // Start data fetching
+  // start polling
   refreshData();
   fetchWeather();
-  setInterval(refreshData, CONFIG.UPDATE_INTERVAL);
+  setInterval(refreshData,  CONFIG.UPDATE_INTERVAL);
   setInterval(fetchWeather, CONFIG.WEATHER_UPDATE_INTERVAL);
 });
 
-// SYSTEM MODE TOGGLE
+/* ---------- Manual / Auto Toggle ---------- */
 elements.systemModeToggle.addEventListener("change", () => {
-  const isManual = elements.systemModeToggle.checked;
-  elements.systemModeText.textContent = isManual ? "Manual" : "Auto";
-  elements.irrigationButton.disabled = !isManual;
-  elements.manualIrrigationControls.classList.toggle("hidden", !isManual);
-
-  if (isManual) {
-    elements.irrigationButton.classList.remove("opacity-50", "cursor-not-allowed");
-    elements.irrigationButton.classList.add("hover:-translate-y-0.5", "hover:shadow-lg", "hover:from-blue-600", "hover:to-blue-700");
-  } else {
-    elements.irrigationButton.classList.add("opacity-50", "cursor-not-allowed");
-    elements.irrigationButton.classList.remove("hover:-translate-y-0.5", "hover:shadow-lg", "hover:from-blue-600", "hover:to-blue-700");
-  }
+  toggleManualMode(elements.systemModeToggle.checked);
 });
+function toggleManualMode(isManual) {
+  elements.systemModeText.textContent = isManual ? "Manual" : "Auto";
+  elements.irrigationButton.disabled  = !isManual;
+  elements.manualIrrigationControls.classList.toggle("hidden", !isManual);
+  elements.irrigationButton.classList.toggle("opacity-50", !isManual);
+  elements.irrigationButton.classList.toggle("cursor-not-allowed", !isManual);
+}
 
-// SENSOR FETCH
+/* ---------- Fetch Helpers ---------- */
 async function fetchSensorData() {
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/api/sensor_data`);
-    if (!res.ok) throw new Error("Failed to load sensor data");
+    if (!res.ok) throw new Error(res.status);
+    if (res.status === 204) return null;       // no data yet
     return await res.json();
   } catch (err) {
-    console.error("Sensor Fetch Error:", err);
+    console.error("Sensor fetch error:", err);
     return null;
   }
 }
 
-// WEATHER FETCH
 async function fetchWeather() {
+  if (!CONFIG.WEATHER_API_KEY || CONFIG.WEATHER_API_KEY === "your_weatherapi_key_here") return;
   try {
-    const res = await fetch(`http://api.weatherapi.com/v1/current.json?key=${CONFIG.WEATHER_API_KEY}&q=auto:ip`);
-    if (!res.ok) throw new Error("Failed to fetch weather");
-    const data = await res.json();
-    updateWeatherUI(data);
+    const res = await fetch(`https://api.weatherapi.com/v1/current.json?key=${CONFIG.WEATHER_API_KEY}&q=auto:ip`);
+    if (!res.ok) throw new Error(res.status);
+    updateWeatherUI(await res.json());
   } catch (e) {
-    console.error("Weather Error:", e);
+    console.error("Weather fetch error:", e);
   }
+}
+
+/* ---------- UI Updates ---------- */
+function updateSensorUI(data) {
+  if (!data) return;   // no data yet
+
+  const now = new Date();
+
+  /* Moisture */
+  elements.moistureValue.textContent     = data.moisture ?? "--";
+  elements.moistureProgress.style.width  = `${data.moisture ?? 0}%`;
+  elements.moistureStatus.textContent    = data.moisture < CONFIG.MOISTURE_THRESHOLD ? "Irrigation Needed" : "Optimal";
+  elements.moistureUpdated.textContent   = now.toLocaleTimeString();
+
+  /* NPK */
+  elements.nitrogenValue.textContent     = data.nitrogen ?? "--";
+  elements.phosphorusValue.textContent   = data.phosphorus ?? "--";
+  elements.potassiumValue.textContent    = data.potassium ?? "--";
+  elements.npkUpdated.textContent        = now.toLocaleTimeString();
+
+  /* Climate */
+  elements.temperatureValue.textContent  = data.temperature ?? "--";
+  elements.humidityValue.textContent     = data.humidity ?? "--";
+  elements.climateUpdated.textContent    = now.toLocaleTimeString();
+
+  /* pH */
+  elements.phValue.textContent           = data.ph ?? "--";
+  elements.phProgress.style.width        = `${((data.ph ?? 0) / 14) * 100}%`;
+  elements.phStatus.textContent =
+      data.ph < CONFIG.PH_THRESHOLD_LOW  ? "Too Acidic"  :
+      data.ph > CONFIG.PH_THRESHOLD_HIGH ? "Too Alkaline": "Optimal";
+  elements.phUpdated.textContent         = now.toLocaleTimeString();
+
+  /* System + Summary */
+  const statusDot = data.irrigation_prediction === "ON" ? "green" : "gray";
+  const statusTxt = data.irrigation_prediction === "ON" ? "Active" : "Standby";
+  elements.irrigationStatus.innerHTML = `
+    <span class="status-indicator-small w-2 h-2 rounded-full bg-${statusDot}-500 animate-pulse-slow"></span> ${statusTxt}`;
+  elements.systemUpdated.textContent = now.toLocaleTimeString();
+  elements.lastWatering.textContent  = "Just Now";
+  elements.waterLevel.textContent    = `${Math.floor(Math.random() * 30 + 70)}%`;
+  elements.lastSync.textContent      = now.toLocaleTimeString();
+
+  /* Summary mini‑cards */
+  elements.npkSummary.textContent     = `N:${data.nitrogen} P:${data.phosphorus} K:${data.potassium}`;
+  elements.tempSummary.textContent    = `${data.temperature}°C`;
+  elements.humiditySummary.textContent= `${data.humidity}%`;
+  elements.moistureSummary.textContent= `${data.moisture}%`;
 }
 
 function updateWeatherUI(data) {
-  const current = data.current;
-  const icon = WEATHER_ICONS[current.condition.text] || "🌤️";
-  elements.weatherIcon.textContent = icon;
-  elements.weatherTemp.textContent = `${current.temp_c}°C`;
-  elements.weatherDesc.textContent = current.condition.text;
-  elements.feelsLike.textContent = `${current.feelslike_c}°C`;
-  elements.pressure.textContent = `${current.pressure_mb} hPa`;
-  elements.windSpeed.textContent = `${current.wind_kph} km/h`;
-  elements.weatherUpdated.textContent = new Date().toLocaleTimeString();
+  const c = data.current;
+  const icon = WEATHER_ICONS[c.condition.text] || "🌤️";
+  elements.weatherIcon.textContent   = icon;
+  elements.weatherTemp.textContent   = `${c.temp_c}°C`;
+  elements.weatherDesc.textContent   = c.condition.text;
+  elements.feelsLike.textContent     = `${c.feelslike_c}°C`;
+  elements.pressure.textContent      = `${c.pressure_mb} hPa`;
+  elements.windSpeed.textContent     = `${c.wind_kph} km/h`;
+  elements.weatherUpdated.textContent= new Date().toLocaleTimeString();
 }
 
-// UI UPDATE
-function updateSensorUI(data) {
-  const now = new Date();
-  elements.moistureValue.textContent = data.soil_moisture;
-  elements.moistureProgress.style.width = `${data.soil_moisture}%`;
-  elements.moistureStatus.textContent = data.soil_moisture < CONFIG.MOISTURE_THRESHOLD ? "Irrigation Needed" : "Optimal";
-  elements.moistureUpdated.textContent = now.toLocaleTimeString();
-
-  elements.nitrogenValue.textContent = data.nitrogen;
-  elements.phosphorusValue.textContent = data.phosphorus;
-  elements.potassiumValue.textContent = data.potassium;
-  elements.npkUpdated.textContent = now.toLocaleTimeString();
-
-  elements.temperatureValue.textContent = data.temperature;
-  elements.humidityValue.textContent = data.humidity;
-  elements.climateUpdated.textContent = now.toLocaleTimeString();
-
-  elements.phValue.textContent = data.soil_pH;
-  elements.phProgress.style.width = `${(data.soil_pH / 14) * 100}%`;
-  elements.phStatus.textContent =
-    data.soil_pH < CONFIG.PH_THRESHOLD_LOW
-      ? "Too Acidic"
-      : data.soil_pH > CONFIG.PH_THRESHOLD_HIGH
-      ? "Too Alkaline"
-      : "Optimal";
-  elements.phUpdated.textContent = now.toLocaleTimeString();
-
-  elements.irrigationStatus.innerHTML = `<span class="status-indicator-small w-2 h-2 rounded-full bg-${data.irrigation_prediction ? "green" : "gray"}-500 animate-pulse-slow"></span> ${data.irrigation_prediction ? "Active" : "Standby"}`;
-  elements.systemUpdated.textContent = now.toLocaleTimeString();
-  elements.lastWatering.textContent = "Just Now";
-  elements.waterLevel.textContent = `${Math.floor(Math.random() * 30 + 70)}%`;
-  elements.lastSync.textContent = now.toLocaleTimeString();
-
-  elements.npkSummary.textContent = `N:${data.nitrogen} P:${data.phosphorus} K:${data.potassium}`;
-  elements.tempSummary.textContent = `${data.temperature}°C`;
-  elements.humiditySummary.textContent = `${data.humidity}%`;
-  elements.moistureSummary.textContent = `${data.soil_moisture}%`;
-}
-
-// CROP PREDICTION
-async function fetchCropPrediction(data) {
+/* ---------- Crop Recommendation ---------- */
+async function fetchCropRecommendation(data) {
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/predict_crop`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data)
     });
-    const result = await res.json();
-    return result.prediction;
-  } catch (err) {
-    console.error("Crop Predict Error:", err);
+    if (!res.ok) throw new Error(res.status);
+    return (await res.json()).crop;
+  } catch (e) {
+    console.error("Crop recommendation error:", e);
     return "Unknown";
   }
 }
-
 function updateCropRecommendationUI(crop) {
   const icon = CROP_ICONS[crop] || "🌱";
   elements.singleCropRecommendation.innerHTML = `
@@ -234,28 +207,27 @@ function updateCropRecommendationUI(crop) {
       <div class="text-6xl mb-2">${icon}</div>
       <div class="text-xl font-bold">${crop}</div>
       <div class="text-green-600 dark:text-green-300 mt-2">Recommended by AI</div>
-    </div>
-  `;
+    </div>`;
   elements.cropsUpdated.textContent = new Date().toLocaleTimeString();
 }
 
-// BUTTON ACTIONS
+/* ---------- Public buttons ---------- */
 window.refreshData = async () => {
   const sensor = await fetchSensorData();
-  if (!sensor) return;
   updateSensorUI(sensor);
-  const crop = await fetchCropPrediction(sensor);
-  updateCropRecommendationUI(crop);
+  if (sensor) {
+    const crop = await fetchCropRecommendation(sensor);
+    updateCropRecommendationUI(crop);
+  }
 };
 
 window.exportData = async () => {
   const sensor = await fetchSensorData();
-  const blob = new Blob([JSON.stringify(sensor, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `sensor_data_${Date.now()}.json`;
-  link.click();
+  const blob   = new Blob([JSON.stringify(sensor, null, 2)], { type: "application/json" });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement("a");
+  a.href = url; a.download = `sensor_data_${Date.now()}.json`; a.click();
+  URL.revokeObjectURL(url);
 };
 
 window.manualIrrigation = () => {
@@ -263,80 +235,37 @@ window.manualIrrigation = () => {
   alert("Manual irrigation controls enabled.");
 };
 
-// START/STOP IRRIGATION
+/* ---------- Manual irrigation buttons ---------- */
 elements.startIrrigation.addEventListener("click", () => {
   elements.irrigationDurationOptions.classList.toggle("hidden");
 });
-
-document.querySelectorAll(".duration-btn").forEach(btn => {
+document.querySelectorAll(".duration-btn").forEach(btn =>
   btn.addEventListener("click", () => {
-    const mins = btn.getAttribute("data-minutes");
+    const mins = btn.dataset.minutes;
     alert(`✅ Irrigation started for ${mins} minutes.`);
     elements.irrigationDurationOptions.classList.add("hidden");
-    // TODO: Optional backend call
-  });
-});
-
+  })
+);
 elements.stopIrrigation.addEventListener("click", () => {
   alert("🛑 Irrigation stopped manually.");
-  // TODO: Optional backend call
 });
 
-window.dismissAlert = () => {
-  document.getElementById("alertContainer").style.display = "none";
-};
+/* ---------- Helper for connection UI ---------- */
+function setConnection(connected) {
+  elements.connectionStatus.className =
+      `status-dot w-3 h-3 rounded-full bg-${connected ? "green" : "red"}-500 ${connected ? "animate-pulse-slow" : ""}`;
+  elements.connectionText.textContent = connected ? "Connected" : "Disconnected";
+}
 
-/**dummy mock data logic */
-
-// async function fetchSensorData() {
-//     try {
-//         const response = await fetch('/api/sensor_data');
-//         const data = await response.json();
-
-//         document.getElementById('nitrogenValue').textContent = data.nitrogen;
-//         document.getElementById('phosphorusValue').textContent = data.phosphorus;
-//         document.getElementById('potassiumValue').textContent = data.potassium;
-//         document.getElementById('phValue').textContent = data.soil_pH;
-//         document.getElementById('moistureSummary').textContent = `${data.moisture}%`;
-//         document.getElementById('temperatureValue').textContent = data.temperature;
-//         document.getElementById('humidityValue').textContent = data.humidity;
-//         document.getElementById('npkSummary').textContent = `${data.nitrogen}-${data.phosphorus}-${data.potassium}`;
-//         document.getElementById('tempSummary').textContent = `${data.temperature}°C`;
-//         document.getElementById('humiditySummary').textContent = `${data.humidity}%`;
-
-//         // Update pH progress bar
-//         const phPercentage = (data.soil_pH / 14) * 100;
-//         document.getElementById('phProgress').style.width = `${phPercentage}%`;
-
-//         // Optional: update status fields
-//         document.getElementById('npkUpdated').textContent = formatTime(new Date());
-//         document.getElementById('phUpdated').textContent = formatTime(new Date());
-//         document.getElementById('climateUpdated').textContent = formatTime(new Date());
-//     } catch (err) {
-//         console.error("Sensor Fetch Error:", err);
-//     }
-// }
-
-
-// if (!sensor) {
-//   elements.connectionText.textContent = "Sensor data fetch failed";
-//   return;
-// }
-
-
-// if (CONFIG.WEATHER_API_KEY === "your_weatherapi_key_here") {
-//   console.warn("⚠️ Please set a valid weather API key in CONFIG.");
-// }
-
-
-// window.refreshData = async () => {
-//   try {
-//     const sensor = await fetchSensorData();
-//     if (!sensor) return;
-//     updateSensorUI(sensor);
-//     const crop = await fetchCropPrediction(sensor);
-//     updateCropRecommendationUI(crop);
-//   } catch (err) {
-//     console.error("Refresh Error:", err);
-//   }
-// };
+/* ---------- Main poll loop ---------- */
+async function refreshData() {
+  const data = await fetchSensorData();
+  if (data) {
+    setConnection(true);
+    updateSensorUI(data);
+    const crop = await fetchCropRecommendation(data);
+    updateCropRecommendationUI(crop);
+  } else {
+    setConnection(false);
+  }
+}
